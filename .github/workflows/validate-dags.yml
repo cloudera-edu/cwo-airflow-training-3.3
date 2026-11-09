@@ -1,0 +1,28 @@
+name: Validate DAGs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  dag-integrity:
+    runs-on: ubuntu-latest
+    env:
+      AIRFLOW_HOME: ${{ github.workspace }}/airflow-home
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      PYTHONPATH: ${{ github.workspace }}/tests/stubs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Airflow 3.3.2 (same version as Workflow Orchestrator on Anywhere Cloud 2.0)
+        run: |
+          pip install "apache-airflow==3.3.2" \
+            apache-airflow-providers-standard apache-airflow-providers-amazon aiobotocore pytest \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.3.2/constraints-3.12.txt"
+      - name: Initialise a local metadata database
+        run: airflow db migrate
+      - name: Check DAGs parse, serialize and follow the platform rules
+        run: pytest -q tests/
